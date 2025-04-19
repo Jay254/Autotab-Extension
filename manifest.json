@@ -1,20 +1,19 @@
 {
-    "manifest_version": 3,
-    "name": "AutoTab",
-    "version": "1.0",
-    "description": "AI-powered autocomplete for textareas",
-    "permissions": ["scripting", "activeTab"],
-    "content_scripts": [
-      {
-        "matches": ["<all_urls>"],
-        "js": ["content.js"],
-        "run_at": "document_idle"
-      }
-    ],
-    "icons": {
-      "16": "icons/code16.png",
-      "48": "icons/code48.png",
-      "128": "icons/code128.png"
+  "manifest_version": 3,
+  "name": "AutoTab",
+  "version": "1.0",
+  "description": "AI-powered autocomplete for textareas",
+  "permissions": ["scripting", "activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
+  ],
+  "icons": {
+    "16": "icons/code16.png",
+    "48": "icons/code48.png",
+    "128": "icons/code128.png"
   }
-  
+}
