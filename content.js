@@ -1,3 +1,6 @@
+let debounceTimer;
+let suggestion = '';
+
 function createGhostOverlay(textarea) {
   const ghost = document.createElement('div');
   const style = getComputedStyle(textarea);
@@ -24,30 +27,24 @@ function createGhostOverlay(textarea) {
 
 function handleTextarea(textarea) {
   const ghost = createGhostOverlay(textarea);
-  let suggestion = '';
 
-  textarea.addEventListener('input', async () => {
+  textarea.addEventListener('input', () => {
     const value = textarea.value;
+    ghost.textContent = value;
 
-    if (value.length > 5) {
-      try {
-        const res = await fetch('http://localhost:3000/api/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: value })
-        });
+    clearTimeout(debounceTimer);
 
-        const data = await res.json();
-        suggestion = data.completion;
-        ghost.textContent = value + suggestion;
-      } catch (err) {
-        console.error('Autocomplete fetch failed:', err);
-        ghost.textContent = '';
-        suggestion = '';
-      }
-    } else {
-      ghost.textContent = '';
+    const lastChar = value.slice(-1);
+    const triggerChars = [' ', '.', ',', '?', '!'];
+
+    // Don't trigger on empty input or after a full stop
+    if (!value || value.trim().endsWith('.')) {
       suggestion = '';
+      return;
+    }
+
+    if (triggerChars.includes(lastChar)) {
+      debounceTimer = setTimeout(() => fetchSuggestion(value, ghost, textarea), 300);
     }
   });
 
@@ -61,6 +58,42 @@ function handleTextarea(textarea) {
   });
 }
 
+async function fetchSuggestion(value, ghost, textarea) {
+  try {
+    const res = await fetch('http://localhost:3000/api/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: value })
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let finalSuggestion = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+
+      try {
+        const parsed = JSON.parse(chunk);
+        if (parsed.completion) {
+          finalSuggestion += parsed.completion;
+        }
+      } catch {
+        finalSuggestion += chunk;
+      }
+
+      ghost.textContent = textarea.value + finalSuggestion;
+    }
+
+    suggestion = finalSuggestion;
+  } catch (err) {
+    console.error('Autocomplete fetch failed:', err);
+    suggestion = '';
+  }
+}
+
 function findAndHookTextareas() {
   const textareas = document.querySelectorAll('textarea:not([data-autotab-hooked])');
   textareas.forEach((ta) => {
@@ -70,6 +103,5 @@ function findAndHookTextareas() {
 }
 
 window.addEventListener('load', findAndHookTextareas);
-
 const observer = new MutationObserver(findAndHookTextareas);
 observer.observe(document.body, { childList: true, subtree: true });
